@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-paper text-ink font-body antialiased;
+}
+
+/* Dotted ledger leader between a description and its amount */
+.ledger-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.ledger-row .leader {
+  flex: 1;
+  border-bottom: 1px dotted theme('colors.slate.DEFAULT');
+  transform: translateY(-3px);
+  opacity: 0.5;
+}
+
+::selection {
+  background: #3F7259;
+  color: #F7F5F0;
+}
+
+/* Custom scrollbar to match the ledger theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #3D4A59;
+  border-radius: 4px;
+}
