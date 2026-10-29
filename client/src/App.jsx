@@ -9,6 +9,7 @@ import Transactions from "./pages/Transactions";
 import Categories from "./pages/Categories";
 import Budgets from "./pages/Budgets";
 import Savings from "./pages/Savings";
+import Chat from "./pages/Chat";
 
 function App() {
   return (
@@ -55,6 +56,14 @@ function App() {
             element={
               <PrivateRoute>
                 <Savings />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <PrivateRoute>
+                <Chat />
               </PrivateRoute>
             }
           />

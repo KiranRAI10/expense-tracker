@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Receipt, Tags, Wallet, Target, LogOut } from "lucide-react";
+import { LayoutDashboard, Receipt, Tags, Wallet, Target, Bot, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/budgets", label: "Budgets", icon: Wallet },
   { to: "/savings", label: "Savings", icon: Target },
   { to: "/categories", label: "Categories", icon: Tags },
+  { to: "/chat", label: "Chat", icon: Bot },
 ];
 
 const Layout = ({ children }) => {

@@ -13,6 +13,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const budgetRoutes = require("./routes/budgetRoutes");
 const goalRoutes = require("./routes/goalRoutes");
 const contributionRoutes = require("./routes/contributionRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 
 connectDB();
 
@@ -37,6 +38,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/goals", goalRoutes);
 app.use("/api/goals/:goalId/contributions", contributionRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
