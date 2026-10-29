@@ -1,11 +1,12 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Receipt, Tags, Wallet, LogOut } from "lucide-react";
+import { LayoutDashboard, Receipt, Tags, Wallet, Target, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/transactions", label: "Transactions", icon: Receipt },
   { to: "/budgets", label: "Budgets", icon: Wallet },
+  { to: "/savings", label: "Savings", icon: Target },
   { to: "/categories", label: "Categories", icon: Tags },
 ];
 

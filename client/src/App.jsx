@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { SocketProvider } from "./context/SocketContext";
 import PrivateRoute from "./components/PrivateRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -7,12 +8,14 @@ import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Categories from "./pages/Categories";
 import Budgets from "./pages/Budgets";
+import Savings from "./pages/Savings";
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <SocketProvider>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
@@ -47,8 +50,17 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/savings"
+            element={
+              <PrivateRoute>
+                <Savings />
+              </PrivateRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+          </Routes>
+        </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
   );
