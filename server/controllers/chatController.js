@@ -1,6 +1,8 @@
 const Transaction = require("../models/Transaction");
 const Category = require("../models/Category");
 const Budget = require("../models/Budget");
+const Goal = require("../models/Goal");
+const Contribution = require("../models/Contribution");
 const asyncHandler = require("../middleware/asyncHandler");
 const { monthRange } = require("./transactionController");
 
@@ -40,6 +42,58 @@ const extractAmount = (text) => {
     }
   }
   return null;
+};
+
+// Extract a relative or absolute date from free text. Defaults to today.
+const extractDate = (text) => {
+  const lower = text.toLowerCase();
+  const now = new Date();
+  now.setUTCHours(0, 0, 0, 0);
+
+  // ISO date: 2026-10-25
+  const iso = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) {
+    const d = new Date(Date.UTC(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10)));
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Month day: "October 25", "oct 25"
+  const monthNames = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  const md = lower.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d{1,2})\b/);
+  if (md) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), monthNames[md[1]], parseInt(md[2], 10)));
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  if (lower.match(/\byesterday\b/)) {
+    const d = new Date(now); d.setUTCDate(now.getUTCDate() - 1); return d;
+  }
+  if (lower.match(/\btomorrow\b/)) {
+    const d = new Date(now); d.setUTCDate(now.getUTCDate() + 1); return d;
+  }
+  if (lower.match(/\btoday\b/)) return now;
+
+  const daysAgo = lower.match(/\b(\d+)\s+days?\s+ago\b/);
+  if (daysAgo) {
+    const d = new Date(now); d.setUTCDate(now.getUTCDate() - parseInt(daysAgo[1], 10)); return d;
+  }
+  if (lower.match(/\blast week\b/)) {
+    const d = new Date(now); d.setUTCDate(now.getUTCDate() - 7); return d;
+  }
+
+  // Next weekday: "next monday"
+  const weekdays = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+  const wd = lower.match(/\bnext\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
+  if (wd) {
+    const target = weekdays[wd[1]];
+    const d = new Date(now);
+    let diff = target - d.getUTCDay();
+    if (diff <= 0) diff += 7;
+    d.setUTCDate(now.getUTCDate() + diff);
+    return d;
+  }
+
+  return now;
 };
 
 // Detect a month reference: "this month", "last month", "October 2026", "2026-10"
@@ -115,8 +169,11 @@ const HELP_TEXT = `Here's what I can help you with:
 • "Groceries spending in October" — by category
 • "Show my income vs expense trend" — yearly trend
 • "What are my categories?" — list categories
-• "Add \$25 for lunch under Food" — log a new transaction (you'll confirm first)
+• "Add 25 for lunch under Food" — log a new transaction (you'll confirm first)
+• "Add 20 for dinner yesterday" — log with a past or future date
+• "Did I spend more than last month?" — month-over-month comparison
 • "Am I over budget on dining?" — budget check
+• "Am I on track for my vacation goal?" — savings goal progress
 
 Just type naturally and I'll look up your ledger.`;
 
@@ -173,13 +230,16 @@ const chat = asyncHandler(async (req, res) => {
     const category = findCategoryByName(text, categories);
     const description = text;
 
-    entities = { amount, type, category: category ? category._id : null, categoryName: category ? category.name : null, description, date: new Date().toISOString() };
+    const transDate = extractDate(text);
+    const dateLabel = transDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+
+    entities = { amount, type, category: category ? category._id : null, categoryName: category ? category.name : null, description, date: transDate.toISOString() };
 
     if (!category) {
       response = `I found an amount of ${formatCurrency(amount, currency)} but couldn't match a category. Which category should this go under?`;
     } else {
       const verb = type === "income" ? "earned" : "spent";
-      response = `Should I log ${formatCurrency(amount, currency)} as ${verb} on "${category.name}" (${type}) today? Confirm to add it.`;
+      response = `Should I log ${formatCurrency(amount, currency)} as ${verb} on "${category.name}" (${type}) on ${dateLabel}? Confirm to add it.`;
       action = { type: "add_transaction", proposed: entities };
     }
   }
@@ -274,6 +334,57 @@ const chat = asyncHandler(async (req, res) => {
         return `• ${b.category.name}: spent ${formatCurrency(spent, currency)} of ${formatCurrency(b.monthlyLimit, currency)} — ${status}`;
       }).join("\n");
       response = `Budget status for ${monthLabel(month)}:\n${lines}`;
+    }
+  }
+  // ---- Comparisons ----
+  else if (lower.match(/\b(compare|more than|less than|than last|vs last|this month vs|spending compared|did i spend)\b/)) {
+    intent = "comparison";
+    const curMonth = currentMonth();
+    const [cy, cm] = curMonth.split("-").map(Number);
+    const last = new Date(Date.UTC(cy, cm - 2, 1));
+    const lastMonth = `${last.getUTCFullYear()}-${String(last.getUTCMonth() + 1).padStart(2, "0")}`;
+
+    const [curRes, lastRes] = await Promise.all([
+      Transaction.aggregate([
+        { $match: { userId, type: "expense", date: { $gte: monthRange(curMonth).start, $lt: monthRange(curMonth).end } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Transaction.aggregate([
+        { $match: { userId, type: "expense", date: { $gte: monthRange(lastMonth).start, $lt: monthRange(lastMonth).end } } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+    ]);
+    const curTotal = curRes[0]?.total || 0;
+    const lastTotal = lastRes[0]?.total || 0;
+    const diff = curTotal - lastTotal;
+    const curLabel = monthLabel(curMonth);
+    const lastLabel = monthLabel(lastMonth);
+    if (diff > 0) {
+      response = `You spent ${formatCurrency(diff, currency)} more in ${curLabel} (${formatCurrency(curTotal, currency)}) than ${lastLabel} (${formatCurrency(lastTotal, currency)}).`;
+    } else if (diff < 0) {
+      response = `You spent ${formatCurrency(Math.abs(diff), currency)} less in ${curLabel} (${formatCurrency(curTotal, currency)}) than ${lastLabel} (${formatCurrency(lastTotal, currency)}).`;
+    } else {
+      response = `You spent the same in ${curLabel} and ${lastLabel}: ${formatCurrency(curTotal, currency)}.`;
+    }
+  }
+  // ---- Savings goals ----
+  else if (lower.match(/\b(savings|goal|on track|vacation goal|target|progress)\b/)) {
+    intent = "savings";
+    const goals = await Goal.find({ userId, status: "active" }).lean();
+    if (goals.length === 0) {
+      response = "You don't have any active savings goals. Create one on the Savings page.";
+    } else {
+      const lines = await Promise.all(goals.map(async (g) => {
+        const contribs = await Contribution.aggregate([
+          { $match: { goalId: g._id } },
+          { $group: { _id: null, total: { $sum: { $cond: [{ $eq: ["$type", "actual"] }, "$amount", { $multiply: ["$amount", -1] }] } } } },
+        ]);
+        const contributed = contribs[0]?.total || 0;
+        const remaining = g.targetAmount - contributed;
+        const pct = g.targetAmount > 0 ? Math.round((contributed / g.targetAmount) * 100) : 0;
+        return `• ${g.name}: ${formatCurrency(contributed, g.currency)} of ${formatCurrency(g.targetAmount, g.currency)} (${pct}%) — ${remaining > 0 ? `${formatCurrency(remaining, g.currency)} remaining` : "target reached"}`;
+      }));
+      response = `Your savings goals:\n${lines.join("\n")}`;
     }
   }
   // ---- Unknown ----

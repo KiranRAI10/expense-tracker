@@ -81,7 +81,7 @@ const Chat = () => {
             <h1 className="font-display text-2xl font-semibold text-ink flex items-center gap-2">
               <Bot size={24} strokeWidth={1.75} /> Ledger Assistant
             </h1>
-            <p className="mt-1 text-sm text-slate">Ask about your spending, budget, or add a transaction.</p>
+            <p className="mt-1 text-sm text-slate">Ask about your spending, budget, goals, or add a transaction.</p>
           </div>
         </div>
 
@@ -136,11 +136,15 @@ const Chat = () => {
               <AlertCircle size={20} strokeWidth={1.75} className="text-amber mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-ink">Confirm new transaction</p>
-                <p className="text-xs text-slate mt-1">
-                  Add {formatCurrency(confirming.amount, user?.currency)} as{" "}
-                  <span className="font-semibold capitalize">{confirming.type}</span>{" "}
-                  under "{confirming.categoryName}" today?
-                </p>
+            <p className="text-xs text-slate mt-1">
+              Add {formatCurrency(confirming.amount, user?.currency)} as{" "}
+              <span className="font-semibold capitalize">{confirming.type}</span>{" "}
+              under "{confirming.categoryName}" on{" "}
+              <span className="font-semibold">
+                {new Date(confirming.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              </span>
+              ?
+            </p>
               </div>
             </div>
             <div className="mt-3 flex gap-2">
