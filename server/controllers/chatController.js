@@ -166,10 +166,10 @@ const formatCurrency = (amount, currency = "USD") => {
 const HELP_TEXT = `Here's what I can help you with:
 
 • "How much did I spend last month?" — monthly summary
-• "Groceries spending in October" — by category
+• "Groceries spending in October" — spending by category
 • "Show my income vs expense trend" — yearly trend
-• "What are my categories?" — list categories
-• "Add 25 for lunch under Food" — log a new transaction (you'll confirm first)
+• "What are my categories?" — list your categories
+• "Add 25 for lunch under Food" — log a new transaction (you confirm first)
 • "Add 20 for dinner yesterday" — log with a past or future date
 • "Did I spend more than last month?" — month-over-month comparison
 • "Am I over budget on dining?" — budget check

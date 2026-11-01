@@ -98,7 +98,7 @@ const Chat = () => {
                 className={`max-w-[85%] p-3 rounded-2xl mb-2 ${
                   msg.sender === "user"
                     ? "ml-auto bg-ledger text-white text-sm"
-                    : "mr-auto bg-paper-dim border border-ink/5 text-ink text-sm"
+                    : "mr-auto bg-paper-dim border border-ink/5 text-ink text-sm whitespace-pre-wrap"
                 }`}
               >
                 {msg.text}
