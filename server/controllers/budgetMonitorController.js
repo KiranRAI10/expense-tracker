@@ -3,11 +3,18 @@ const Transaction = require("../models/Transaction");
 const Category = require("../models/Category");
 const Notification = require("../models/Notification");
 const asyncHandler = require("../middleware/asyncHandler");
-const { monthRange } = require("./transactionController");
 
 const THRESHOLDS = [75, 90, 100];
 
 const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getDate();
+
+// Build a date range for a given "YYYY-MM" month string (local copy to avoid circular dep with transactionController)
+const monthRange = (month) => {
+  const [year, mon] = month.split("-").map(Number);
+  const start = new Date(Date.UTC(year, mon - 1, 1));
+  const end = new Date(Date.UTC(year, mon, 1));
+  return { start, end, year, mon };
+};
 
 const monthBounds = (monthStr) => {
   const [year, mon] = monthStr.split("-").map(Number);
