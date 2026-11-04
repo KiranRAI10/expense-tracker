@@ -1,15 +1,23 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import Layout from "../components/Layout";
 import MonthSwitcher from "../components/MonthSwitcher";
 import { currentMonthStr, formatCurrency } from "../utils/format";
 
+const STATUS_CONFIG = {
+  OK: { label: "On track", color: "#3F7259", icon: CheckCircle2 },
+  WARNING: { label: "Caution", color: "#C98A2C", icon: AlertTriangle },
+  CRITICAL: { label: "Critical", color: "#B9773A", icon: AlertTriangle },
+  OVER: { label: "Over budget", color: "#C1533E", icon: AlertTriangle },
+  AT_RISK: { label: "At risk", color: "#C98A2C", icon: Clock },
+};
+
 const Budgets = () => {
   const { user } = useAuth();
   const [month, setMonth] = useState(currentMonthStr());
-  const [budgets, setBudgets] = useState([]);
+  const [data, setData] = useState(null);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("");
@@ -18,13 +26,18 @@ const Budgets = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [budgetsRes, categoriesRes] = await Promise.all([
-      api.get(`/budgets?month=${month}`),
-      api.get("/categories"),
-    ]);
-    setBudgets(budgetsRes.data);
-    setCategories(categoriesRes.data.filter((c) => c.type === "expense"));
-    setLoading(false);
+    try {
+      const [monitorRes, categoriesRes] = await Promise.all([
+        api.get(`/budget-monitor/monitor?month=${month}`),
+        api.get("/categories"),
+      ]);
+      setData(monitorRes.data);
+      setCategories(categoriesRes.data.filter((c) => c.type === "expense"));
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not load budgets.");
+    } finally {
+      setLoading(false);
+    }
   }, [month]);
 
   useEffect(() => {
@@ -54,14 +67,93 @@ const Budgets = () => {
     await load();
   };
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="mt-6 text-sm text-slate">Loading…</div>
+      </Layout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <Layout>
+        <div className="mt-6 text-sm text-slate">Error loading budgets.</div>
+      </Layout>
+    );
+  }
+
+  const { budgets, summary, previousMonth, monthLabel } = data;
+
   return (
     <Layout>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="font-display text-2xl font-semibold text-ink">Budgets</h1>
-          <p className="mt-1 text-sm text-slate">Set a monthly limit per category and track progress.</p>
+          <p className="mt-1 text-sm text-slate">
+            Monthly limits with spending forecasts, pace, and risk alerts.
+          </p>
         </div>
         <MonthSwitcher month={month} onChange={setMonth} />
+      </div>
+
+      {summary && (
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-ink/10 bg-white p-4">
+            <p className="text-xs text-slate uppercase tracking-wide">Total limit</p>
+            <p className="font-mono text-lg font-semibold text-ink">
+              {formatCurrency(summary.totalLimit, user?.currency)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-ink/10 bg-white p-4">
+            <p className="text-xs text-slate uppercase tracking-wide">Spent this month</p>
+            <p className="font-mono text-lg font-semibold text-ink">
+              {formatCurrency(summary.totalSpent, user?.currency)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-ink/10 bg-white p-4">
+            <p className="text-xs text-slate uppercase tracking-wide">Remaining</p>
+            <p className={`font-mono text-lg font-semibold ${summary.overallStatus === "OVER" ? "text-rust" : "text-ink"}`}>
+              {formatCurrency(summary.totalRemaining, user?.currency)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 rounded-lg border border-ink/10 bg-white p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="font-display text-base font-semibold text-ink">Monthly progress</h2>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+              summary.overallStatus === "OK"
+                ? "bg-ledger/10 text-ledger"
+                : summary.overallStatus === "OVER"
+                ? "bg-rust/10 text-rust"
+                : "bg-amber/10 text-amber"
+            }`}
+          >
+            Overall: {summary.overallStatus} ({summary.overallPct}%)
+          </span>
+        </div>
+        {previousMonth && (
+          <p className="text-xs text-slate mb-3">
+            vs {previousMonth.monthLabel}: {previousMonth.total === 0 ? "N/A" : `${previousMonth.trend} by ${formatCurrency(Math.abs(previousMonth.difference), user?.currency)}`}
+          </p>
+        )}
+        <div className="h-1 w-full overflow-hidden rounded-full bg-paper-dim">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${Math.min(100, summary.overallPct)}%`,
+              backgroundColor:
+                summary.overallStatus === "OVER"
+                  ? "#C1533E"
+                  : summary.overallPct >= 75
+                  ? "#C98A2C"
+                  : "#3F7259",
+            }}
+          />
+        </div>
       </div>
 
       <form onSubmit={handleCreate} className="mt-6 rounded-lg border border-ink/10 bg-white p-5">
@@ -108,21 +200,18 @@ const Budgets = () => {
         </div>
       </form>
 
-      {loading ? (
-        <p className="mt-6 text-sm text-slate">Loading…</p>
-      ) : budgets.length === 0 ? (
+      {budgets.length === 0 ? (
         <div className="mt-6 flex h-32 items-center justify-center rounded-lg border border-dashed border-ink/15 text-sm text-slate">
-          No budgets set for this month yet.
+          No budgets set for {monthLabel} yet.
         </div>
       ) : (
         <div className="mt-6 space-y-3">
           {budgets.map((b) => {
-            const pct = Math.min(100, Math.round((b.spent / b.monthlyLimit) * 100));
-            const over = b.spent > b.monthlyLimit;
-            const barColor = over ? "#C1533E" : pct >= 80 ? "#C98A2C" : "#3F7259";
+            const cfg = STATUS_CONFIG[b.status] || STATUS_CONFIG.OK;
+            const Icon = cfg.icon;
             return (
               <div key={b._id} className="rounded-lg border border-ink/10 bg-white p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2.5">
                     <span
                       className="h-2.5 w-2.5 rounded-full"
@@ -130,10 +219,17 @@ const Budgets = () => {
                     />
                     <span className="text-sm font-medium text-ink">{b.category?.name}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-slate">
-                      {formatCurrency(b.spent, user?.currency)} /{" "}
-                      {formatCurrency(b.monthlyLimit, user?.currency)}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                        cfg.color === "#C1533E"
+                          ? "bg-rust/10 text-rust"
+                          : cfg.color === "#C98A2C"
+                          ? "bg-amber/10 text-amber"
+                          : "bg-ledger/10 text-ledger"
+                      }`}
+                    >
+                      <Icon size={12} strokeWidth={1.75} /> {cfg.label}
                     </span>
                     <button
                       onClick={() => handleDelete(b._id)}
@@ -144,17 +240,48 @@ const Budgets = () => {
                     </button>
                   </div>
                 </div>
-                <div className="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-paper-dim">
+                <div className="flex items-center gap-3 text-xs font-mono text-slate mb-1">
+                  <span>
+                    {formatCurrency(b.spent, user?.currency)} /{" "}
+                    {formatCurrency(b.monthlyLimit, user?.currency)}
+                  </span>
+                  <span>{b.pct}% used</span>
+                  <span>{formatCurrency(b.remaining, user?.currency)} left</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-paper-dim mb-2">
                   <div
                     className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, backgroundColor: barColor }}
+                    style={{
+                      width: `${Math.min(100, b.pct)}%`,
+                      backgroundColor:
+                        b.status === "OVER"
+                          ? "#C1533E"
+                          : b.status === "AT_RISK" || b.status === "CRITICAL"
+                          ? "#C98A2C"
+                          : "#3F7259",
+                    }}
                   />
                 </div>
-                {over && (
-                  <p className="mt-1.5 text-xs text-rust">
-                    Over budget by {formatCurrency(b.spent - b.monthlyLimit, user?.currency)}
-                  </p>
-                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="rounded bg-paper-dim p-2">
+                    <p className="text-slate uppercase tracking-wide">Forecast</p>
+                    <p className={`font-mono text-sm ${b.forecastOverLimit ? "text-rust font-semibold" : "text-ink"}`}>
+                      {formatCurrency(b.forecast, user?.currency)}
+                      {b.forecastOverLimit ? " (over)" : ""}
+                    </p>
+                  </div>
+                  <div className="rounded bg-paper-dim p-2">
+                    <p className="text-slate uppercase tracking-wide">Daily pace</p>
+                    <p className="font-mono text-sm text-ink">
+                      {formatCurrency(b.safeDailyPace, user?.currency)}/day
+                    </p>
+                  </div>
+                  <div className="rounded bg-paper-dim p-2">
+                    <p className="text-slate uppercase tracking-wide">Days left</p>
+                    <p className="font-mono text-sm text-ink">{b.daysRemaining}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-slate">{b.recommendation}</p>
               </div>
             );
           })}

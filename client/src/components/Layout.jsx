@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Receipt, Tags, Wallet, Target, Bot, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import NotificationDropdown from "./NotificationDropdown";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -51,12 +52,15 @@ const Layout = ({ children }) => {
           </nav>
         </div>
 
-        <div className="border-t border-white/10 p-4">
-          <p className="truncate px-2 text-sm font-medium text-white/90">{user?.name}</p>
-          <p className="truncate px-2 text-xs text-white/40">{user?.email}</p>
+        <div className="border-t border-white/10 p-4 flex flex-col gap-2">
+          <div>
+            <p className="truncate px-2 text-sm font-medium text-white/90">{user?.name}</p>
+            <p className="truncate px-2 text-xs text-white/40">{user?.email}</p>
+          </div>
+          <NotificationDropdown user={user} />
           <button
             onClick={handleLogout}
-            className="mt-3 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-white/60 transition-colors hover:bg-white/5 hover:text-rust-light"
+            className="mt-2 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-white/60 transition-colors hover:bg-white/5 hover:text-rust-light"
           >
             <LogOut size={16} strokeWidth={1.75} />
             Log out

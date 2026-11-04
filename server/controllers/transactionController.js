@@ -1,6 +1,7 @@
 const Transaction = require("../models/Transaction");
 const Category = require("../models/Category");
 const asyncHandler = require("../middleware/asyncHandler");
+const { recalculateAfterTransaction } = require("./budgetMonitorController");
 
 // Helper: build a date range for a given "YYYY-MM" month string
 const monthRange = (month) => {
@@ -72,6 +73,11 @@ const createTransaction = asyncHandler(async (req, res) => {
   });
 
   const populated = await transaction.populate("category", "name type color");
+
+  const txDate = new Date(transaction.date);
+  const monthStr = `${txDate.getUTCFullYear()}-${String(txDate.getUTCMonth() + 1).padStart(2, "0")}`;
+  void recalculateAfterTransaction(req.user._id, monthStr, req.user.currency);
+
   res.status(201).json(populated);
 });
 
@@ -99,6 +105,11 @@ const updateTransaction = asyncHandler(async (req, res) => {
 
   await transaction.save();
   const populated = await transaction.populate("category", "name type color");
+
+  const txDate = new Date(transaction.date);
+  const monthStr = `${txDate.getUTCFullYear()}-${String(txDate.getUTCMonth() + 1).padStart(2, "0")}`;
+  void recalculateAfterTransaction(req.user._id, monthStr, req.user.currency);
+
   res.json(populated);
 });
 
@@ -117,7 +128,12 @@ const deleteTransaction = asyncHandler(async (req, res) => {
     throw new Error("Not authorized to delete this transaction");
   }
 
+  const txDate = new Date(transaction.date);
+  const monthStr = `${txDate.getUTCFullYear()}-${String(txDate.getUTCMonth() + 1).padStart(2, "0")}`;
+
   await transaction.deleteOne();
+  void recalculateAfterTransaction(req.user._id, monthStr, req.user.currency);
+
   res.json({ message: "Transaction deleted" });
 });
 
