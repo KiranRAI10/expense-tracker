@@ -295,7 +295,7 @@ const Savings = () => {
                 <div className="mt-3 space-y-1 text-xs text-slate">
                   <div className="flex justify-between">
                     <span>Target date</span>
-                    <span>{monthLabel(g.targetDate.slice(0, 7))}</span>
+                    <span>{g.targetDate ? monthLabel(g.targetDate.slice(0, 7)) : "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Days left</span>

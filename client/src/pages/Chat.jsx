@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useCurrency } from "../context/CurrencyContext";
 import api from "../services/api";
 import Layout from "../components/Layout";
+import FormattedAmount from "../components/FormattedAmount";
 import { formatCurrency } from "../utils/format";
 import { Send, Bot, AlertCircle } from "lucide-react";
 
 const Chat = () => {
-  const { user } = useAuth();
+  const { baseCurrency } = useCurrency();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,7 @@ const Chat = () => {
         date: confirming.date,
       });
       addMessage(
-        `Added ${formatCurrency(confirming.amount, user?.currency)} as ${confirming.type} under "${confirming.categoryName}".`,
+        `Added ${formatCurrency(confirming.amount, baseCurrency)} as ${confirming.type} under "${confirming.categoryName}".`,
         "bot",
       );
       setConfirming(null);
@@ -136,15 +137,15 @@ const Chat = () => {
               <AlertCircle size={20} strokeWidth={1.75} className="text-amber mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-ink">Confirm new transaction</p>
-            <p className="text-xs text-slate mt-1">
-              Add {formatCurrency(confirming.amount, user?.currency)} as{" "}
-              <span className="font-semibold capitalize">{confirming.type}</span>{" "}
-              under "{confirming.categoryName}" on{" "}
-              <span className="font-semibold">
-                {new Date(confirming.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-              </span>
-              ?
-            </p>
+                <p className="text-xs text-slate mt-1">
+                  Add <FormattedAmount amount={confirming.amount} /> as{" "}
+                  <span className="font-semibold capitalize">{confirming.type}</span>{" "}
+                  under "{confirming.categoryName}" on{" "}
+                  <span className="font-semibold">
+                    {new Date(confirming.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                  ?
+                </p>
               </div>
             </div>
             <div className="mt-3 flex gap-2">

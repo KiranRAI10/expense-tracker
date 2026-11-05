@@ -112,7 +112,7 @@ const createGoal = asyncHandler(async (req, res) => {
     userId: req.user._id,
     name,
     targetAmount: numericTarget,
-    currency: currency || "PKR",
+    currency: currency || req.user.currency || "USD",
     targetDate,
     description: description || "",
   });

@@ -21,23 +21,23 @@ const monthLabel = (monthStr) => {
 // and treated as the user's configured currency.
 const extractAmount = (text) => {
   const patterns = [
-    /(?:(?<=\s|^)\$(\d+(?:\.\d+)?)(?=\s|$|[.,!?]))/i,
-    /(?:(?<=\s|^)Rs\s*(\d+(?:\.\d+)?)(?=\s|$|[.,!?]))/i,
-    /(?:(?<=\s|^)(?:rupees?|dollars?|bucks?)\s*(\d+(?:\.\d+)?)(?=\s|$|[.,!?]))/i,
-    /(?:(?<=\s|^)(\d+(?:\.\d+)?)\s*(?:rupees?|dollars?|bucks?)(?=\s|$|[.,!?]))/i,
+    /(?:^|\s)\$(\d+(?:\.\d+)?)(?=\s|$|[.,!?])/i,
+    /(?:^|\s)Rs\.?\s*(\d+(?:\.\d+)?)(?=\s|$|[.,!?])/i,
+    /(?:^|\s)(?:rupees?|dollars?|bucks?|pounds?|euros?)\s*(\d+(?:\.\d+)?)(?=\s|$|[.,!?])/i,
+    /(?:^|\s)(\d+(?:\.\d+)?)\s*(?:rupees?|dollars?|bucks?|pounds?|euros?|usd|pkr|gbp|eur|inr|npr)(?=\s|$|[.,!?])/i,
   ];
   for (const pattern of patterns) {
     const m = text.match(pattern);
-    if (m) return parseFloat(m[1]);
+    if (m && m[1]) return parseFloat(m[1]);
   }
 
   // Bare number fallback: "add 25 for lunch" -> 25
-  const numbers = text.match(/\d+(?:\.\d+)?/g);
+  const numbers = text.match(/\b\d+(?:\.\d+)?\b/g);
   if (numbers) {
     for (const raw of numbers) {
       const n = parseFloat(raw);
       // Skip 4-digit years like 2026
-      if (raw.length === 4 && n >= 1000 && n <= 2100) continue;
+      if (raw.length === 4 && n >= 1990 && n <= 2100) continue;
       return n;
     }
   }
@@ -320,7 +320,7 @@ const chat = asyncHandler(async (req, res) => {
     if (budgets.length === 0) {
       response = `No budgets set for ${monthLabel(month)}. Set one on the Budgets page.`;
     } else {
-      const categoryIds = budgets.map((b) => b.category);
+      const categoryIds = budgets.map((b) => b.category?._id || b.category).filter(Boolean);
       const spentByCategory = await Transaction.aggregate([
         { $match: { userId, type: "expense", category: { $in: categoryIds }, date: { $gte: start, $lt: end } } },
         { $group: { _id: "$category", total: { $sum: "$amount" } } },
@@ -329,9 +329,11 @@ const chat = asyncHandler(async (req, res) => {
       spentByCategory.forEach((s) => { spentMap[s._id.toString()] = s.total; });
 
       const lines = budgets.map((b) => {
-        const spent = spentMap[b.category._id.toString()] || 0;
+        const catId = b.category?._id ? b.category._id.toString() : b.category?.toString();
+        const catName = b.category?.name || "Category";
+        const spent = spentMap[catId] || 0;
         const status = spent >= b.monthlyLimit ? "OVER" : (spent >= b.monthlyLimit * 0.8 ? "NEAR" : "OK");
-        return `• ${b.category.name}: spent ${formatCurrency(spent, currency)} of ${formatCurrency(b.monthlyLimit, currency)} — ${status}`;
+        return `• ${catName}: spent ${formatCurrency(spent, currency)} of ${formatCurrency(b.monthlyLimit, currency)} — ${status}`;
       }).join("\n");
       response = `Budget status for ${monthLabel(month)}:\n${lines}`;
     }

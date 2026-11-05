@@ -18,9 +18,10 @@ export const monthLabel = (monthStr) => {
   return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 };
 
+// Use UTC so client and server always agree on the current month
 export const currentMonthStr = () => {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 };
 
 export const shiftMonth = (monthStr, delta) => {

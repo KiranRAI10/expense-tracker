@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Trash2, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
 import Layout from "../components/Layout";
 import MonthSwitcher from "../components/MonthSwitcher";
-import { currentMonthStr, formatCurrency } from "../utils/format";
+import { currentMonthStr } from "../utils/format";
+import FormattedAmount from "../components/FormattedAmount";
 
 const STATUS_CONFIG = {
   OK: { label: "On track", color: "#3F7259", icon: CheckCircle2 },
@@ -15,7 +15,6 @@ const STATUS_CONFIG = {
 };
 
 const Budgets = () => {
-  const { user } = useAuth();
   const [month, setMonth] = useState(currentMonthStr());
   const [data, setData] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -63,8 +62,12 @@ const Budgets = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this budget?")) return;
-    await api.delete(`/budgets/${id}`);
-    await load();
+    try {
+      await api.delete(`/budgets/${id}`);
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not delete budget.");
+    }
   };
 
   if (loading) {
@@ -102,19 +105,19 @@ const Budgets = () => {
           <div className="rounded-lg border border-ink/10 bg-white p-4">
             <p className="text-xs text-slate uppercase tracking-wide">Total limit</p>
             <p className="font-mono text-lg font-semibold text-ink">
-              {formatCurrency(summary.totalLimit, user?.currency)}
+              <FormattedAmount amount={summary.totalLimit} />
             </p>
           </div>
           <div className="rounded-lg border border-ink/10 bg-white p-4">
             <p className="text-xs text-slate uppercase tracking-wide">Spent this month</p>
             <p className="font-mono text-lg font-semibold text-ink">
-              {formatCurrency(summary.totalSpent, user?.currency)}
+              <FormattedAmount amount={summary.totalSpent} />
             </p>
           </div>
           <div className="rounded-lg border border-ink/10 bg-white p-4">
             <p className="text-xs text-slate uppercase tracking-wide">Remaining</p>
             <p className={`font-mono text-lg font-semibold ${summary.overallStatus === "OVER" ? "text-rust" : "text-ink"}`}>
-              {formatCurrency(summary.totalRemaining, user?.currency)}
+              <FormattedAmount amount={summary.totalRemaining} />
             </p>
           </div>
         </div>
@@ -137,7 +140,7 @@ const Budgets = () => {
         </div>
         {previousMonth && (
           <p className="text-xs text-slate mb-3">
-            vs {previousMonth.monthLabel}: {previousMonth.total === 0 ? "N/A" : `${previousMonth.trend} by ${formatCurrency(Math.abs(previousMonth.difference), user?.currency)}`}
+            vs {previousMonth.monthLabel}: {previousMonth.total === 0 ? "N/A" : `${previousMonth.trend} by `}<FormattedAmount amount={Math.abs(previousMonth.difference)} />
           </p>
         )}
         <div className="h-1 w-full overflow-hidden rounded-full bg-paper-dim">
@@ -242,11 +245,11 @@ const Budgets = () => {
                 </div>
                 <div className="flex items-center gap-3 text-xs font-mono text-slate mb-1">
                   <span>
-                    {formatCurrency(b.spent, user?.currency)} /{" "}
-                    {formatCurrency(b.monthlyLimit, user?.currency)}
+                    <FormattedAmount amount={b.spent} /> /{" "}
+                    <FormattedAmount amount={b.monthlyLimit} />
                   </span>
                   <span>{b.pct}% used</span>
-                  <span>{formatCurrency(b.remaining, user?.currency)} left</span>
+                  <span><FormattedAmount amount={b.remaining} /> left</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-paper-dim mb-2">
                   <div
@@ -266,14 +269,14 @@ const Budgets = () => {
                   <div className="rounded bg-paper-dim p-2">
                     <p className="text-slate uppercase tracking-wide">Forecast</p>
                     <p className={`font-mono text-sm ${b.forecastOverLimit ? "text-rust font-semibold" : "text-ink"}`}>
-                      {formatCurrency(b.forecast, user?.currency)}
+                      <FormattedAmount amount={b.forecast} />
                       {b.forecastOverLimit ? " (over)" : ""}
                     </p>
                   </div>
                   <div className="rounded bg-paper-dim p-2">
                     <p className="text-slate uppercase tracking-wide">Daily pace</p>
                     <p className="font-mono text-sm text-ink">
-                      {formatCurrency(b.safeDailyPace, user?.currency)}/day
+                      <FormattedAmount amount={b.safeDailyPace} />/day
                     </p>
                   </div>
                   <div className="rounded bg-paper-dim p-2">

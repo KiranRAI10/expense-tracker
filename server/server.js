@@ -4,6 +4,8 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const { errorHandler, notFound } = require("./middleware/errorHandler");
+const { protect } = require("./middleware/auth");
+const { updateUserCurrency } = require("./controllers/currencyController");
 const { initSocket } = require("./socket");
 
 const authRoutes = require("./routes/authRoutes");
@@ -12,6 +14,7 @@ const transactionRoutes = require("./routes/transactionRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const budgetRoutes = require("./routes/budgetRoutes");
 const budgetMonitorRoutes = require("./routes/budgetMonitorRoutes");
+const currencyRoutes = require("./routes/currencyRoutes");
 const goalRoutes = require("./routes/goalRoutes");
 const contributionRoutes = require("./routes/contributionRoutes");
 const chatRoutes = require("./routes/chatRoutes");
@@ -38,6 +41,9 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/budget-monitor", budgetMonitorRoutes);
+app.use("/api/currency", currencyRoutes);
+// Direct alias for PATCH /api/user/currency
+app.patch("/api/user/currency", protect, updateUserCurrency);
 app.use("/api/goals", goalRoutes);
 app.use("/api/goals/:goalId/contributions", contributionRoutes);
 app.use("/api/chat", chatRoutes);

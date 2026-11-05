@@ -6,6 +6,15 @@ const { getIO } = require("../socket");
 
 const VALID_TYPES = ["actual", "withdrawal"];
 
+// Safe emit — socket.io may not be initialized in all environments
+const safeEmit = (userId, event, data) => {
+  try {
+    getIO().to(`user:${userId}`).emit(event, data);
+  } catch (_) {
+    // socket not available; skip
+  }
+};
+
 // @desc    Get contributions for a goal
 // @route   GET /api/goals/:goalId/contributions
 // @access  Private
@@ -70,10 +79,10 @@ const addContribution = asyncHandler(async (req, res) => {
   ) {
     goal.status = progress.reached ? "completed" : "active";
     await goal.save();
-    getIO().to(`user:${req.user._id}`).emit("goal:updated", goal.toObject());
+    safeEmit(req.user._id, "goal:updated", goal.toObject());
   }
 
-  getIO().to(`user:${req.user._id}`).emit("contribution:created", {
+  safeEmit(req.user._id, "contribution:created", {
     goalId,
     contribution,
     progress,
@@ -113,9 +122,9 @@ const deleteContribution = asyncHandler(async (req, res) => {
   if (!progress.reached && goal.status === "completed") {
     goal.status = "active";
     await goal.save();
-    getIO().to(`user:${req.user._id}`).emit("goal:updated", goal.toObject());
+    safeEmit(req.user._id, "goal:updated", goal.toObject());
   }
-  getIO().to(`user:${req.user._id}`).emit("contribution:deleted", {
+  safeEmit(req.user._id, "contribution:deleted", {
     contributionId: contribution._id,
     goalId,
     progress,

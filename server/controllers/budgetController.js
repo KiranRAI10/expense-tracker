@@ -53,13 +53,16 @@ const upsertBudget = asyncHandler(async (req, res) => {
     throw new Error("Category, monthlyLimit, and month are required");
   }
 
+  // Determine whether this is a new document (for correct HTTP status code)
+  const existing = await Budget.findOne({ userId: req.user._id, category, month }).lean();
+
   const budget = await Budget.findOneAndUpdate(
     { userId: req.user._id, category, month },
     { monthlyLimit },
     { new: true, upsert: true, runValidators: true }
   ).populate("category", "name color");
 
-  res.status(201).json(budget);
+  res.status(existing ? 200 : 201).json(budget);
 });
 
 // @desc    Delete a budget

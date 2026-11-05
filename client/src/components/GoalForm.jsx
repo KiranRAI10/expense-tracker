@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { COMMON_CURRENCIES } from "../context/CurrencyContext";
+import { useAuth } from "../context/AuthContext";
 
 const GoalForm = ({ initialData, onSubmit, onClose }) => {
+  const { user } = useAuth();
   const [form, setForm] = useState({
     name: initialData?.name || "",
     targetAmount: initialData?.targetAmount ?? "",
-    currency: initialData?.currency || "PKR",
+    currency: initialData?.currency || user?.currency || "GBP",
     targetDate: initialData?.targetDate?.slice(0, 10) || "",
     description: initialData?.description || "",
   });
@@ -104,8 +107,9 @@ const GoalForm = ({ initialData, onSubmit, onClose }) => {
                 onChange={(e) => setForm({ ...form, currency: e.target.value })}
                 className="w-full rounded-md border border-ink/10 bg-white px-3 py-2 text-sm outline-none focus:border-ledger focus:ring-1 focus:ring-ledger"
               >
-                <option value="PKR">PKR</option>
-                <option value="USD">USD</option>
+              {COMMON_CURRENCIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
               </select>
             </div>
           </div>

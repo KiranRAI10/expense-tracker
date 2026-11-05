@@ -1,7 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
-import { formatCurrency } from "../utils/format";
+import FormattedAmount from "./FormattedAmount";
 
-const TransactionList = ({ transactions, currency, onEdit, onDelete }) => {
+const TransactionList = ({ transactions, currency: _currency, onEdit, onDelete }) => {
   if (!transactions?.length) {
     return (
       <div className="flex h-40 flex-col items-center justify-center rounded-lg border border-dashed border-ink/15 text-sm text-slate">
@@ -45,7 +45,7 @@ const TransactionList = ({ transactions, currency, onEdit, onDelete }) => {
             }`}
           >
             {t.type === "income" ? "+" : "−"}
-            {formatCurrency(t.amount, currency)}
+            <FormattedAmount amount={t.amount} />
           </span>
 
           <div className="flex shrink-0 gap-1 opacity-0 transition group-hover:opacity-100">

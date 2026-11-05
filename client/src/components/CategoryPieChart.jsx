@@ -1,18 +1,20 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { formatCurrency } from "../utils/format";
+import FormattedAmount from "./FormattedAmount";
 
-const CustomTooltip = ({ active, payload, currency }) => {
+const CustomTooltip = ({ active, payload, currency: _currency }) => {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload;
   return (
     <div className="rounded-md border border-ink/10 bg-white px-3 py-2 text-xs shadow-md">
       <p className="font-medium text-ink">{item.name}</p>
-      <p className="font-mono text-slate">{formatCurrency(item.total, currency)}</p>
+      <p className="font-mono text-slate">
+        <FormattedAmount amount={item.total} />
+      </p>
     </div>
   );
 };
 
-const CategoryPieChart = ({ data, currency }) => {
+const CategoryPieChart = ({ data, currency: _currency }) => {
   if (!data?.length) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-slate">
@@ -38,7 +40,7 @@ const CategoryPieChart = ({ data, currency }) => {
             <Cell key={index} fill={entry.color || "#3F7259"} />
           ))}
         </Pie>
-        <Tooltip content={<CustomTooltip currency={currency} />} />
+        <Tooltip content={<CustomTooltip currency={_currency} />} />
         <Legend
           layout="vertical"
           verticalAlign="middle"

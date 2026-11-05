@@ -43,6 +43,10 @@ const notificationSchema = new mongoose.Schema(
     limit: {
       type: Number,
     },
+    currency: {
+      type: String,
+      default: "GBP",
+    },
     read: {
       type: Boolean,
       default: false,

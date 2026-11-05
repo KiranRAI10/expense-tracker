@@ -1,5 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Scale } from "lucide-react";
-import { formatCurrency } from "../utils/format";
+import FormattedAmount from "./FormattedAmount";
 
 const Card = ({ label, value, icon: Icon, tone }) => (
   <div className="rounded-lg border border-ink/10 bg-white p-5">
@@ -11,7 +11,7 @@ const Card = ({ label, value, icon: Icon, tone }) => (
   </div>
 );
 
-const SummaryCards = ({ summary, currency }) => {
+const SummaryCards = ({ summary, currency: _currency }) => {
   const income = summary?.income || 0;
   const expense = summary?.expense || 0;
   const balance = summary?.balance ?? income - expense;
@@ -20,19 +20,19 @@ const SummaryCards = ({ summary, currency }) => {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <Card
         label="Income"
-        value={formatCurrency(income, currency)}
+        value={<FormattedAmount amount={income} />}
         icon={ArrowUpRight}
         tone="text-ledger"
       />
       <Card
         label="Expenses"
-        value={formatCurrency(expense, currency)}
+        value={<FormattedAmount amount={expense} />}
         icon={ArrowDownRight}
         tone="text-rust"
       />
       <Card
         label="Balance"
-        value={formatCurrency(balance, currency)}
+        value={<FormattedAmount amount={balance} />}
         icon={Scale}
         tone={balance >= 0 ? "text-ink" : "text-rust"}
       />

@@ -6,18 +6,19 @@ const asyncHandler = require("../middleware/asyncHandler");
 
 const THRESHOLDS = [75, 90, 100];
 
-const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getDate();
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Build a date range for a given "YYYY-MM" month string (local copy to avoid circular dep with transactionController)
-const monthRange = (month) => {
-  const [year, mon] = month.split("-").map(Number);
-  const start = new Date(Date.UTC(year, mon - 1, 1));
-  const end = new Date(Date.UTC(year, mon, 1));
-  return { start, end, year, mon };
+// Must be declared before any function that uses it
+const currentMonthStr = () => {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 };
 
-const monthBounds = (monthStr) => {
-  const [year, mon] = monthStr.split("-").map(Number);
+const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getDate();
+
+// Build a date range for a given "YYYY-MM" month string
+const monthRange = (month) => {
+  const [year, mon] = month.split("-").map(Number);
   const start = new Date(Date.UTC(year, mon - 1, 1));
   const end = new Date(Date.UTC(year, mon, 1));
   return { start, end, year, mon };
@@ -27,6 +28,12 @@ const prevMonth = (monthStr) => {
   const [year, mon] = monthStr.split("-").map(Number);
   const d = new Date(Date.UTC(year, mon - 2, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+};
+
+const monthLabel = (monthStr) => {
+  const [year, month] = monthStr.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 };
 
 const formatCurrency = (amount, currency = "USD") => {
@@ -96,16 +103,9 @@ const buildMonitorEntry = async (budget, spent, now, currency) => {
   };
 };
 
-const monthLabel = (monthStr) => {
-  const [year, month] = monthStr.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, 1));
-  return date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-};
-
 // Generate threshold alerts, preventing duplicates
 const generateAlerts = async (userId, entries, now, currency = "USD") => {
   const notifications = [];
-  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   for (const entry of entries) {
     if (!entry.category?._id) continue;
@@ -134,6 +134,7 @@ const generateAlerts = async (userId, entries, now, currency = "USD") => {
         threshold,
         spent: entry.spent,
         limit: entry.monthlyLimit,
+        currency,
       });
     }
   }
@@ -145,8 +146,10 @@ const generateAlerts = async (userId, entries, now, currency = "USD") => {
   return notifications;
 };
 
+// ── Route Handlers ────────────────────────────────────────────────────────────
+
 // @desc    Get budget monitoring dashboard with status, forecast, recommendations, MoM comparison
-// @route   GET /api/budgets/monitor?month=YYYY-MM
+// @route   GET /api/budget-monitor/monitor?month=YYYY-MM
 // @access  Private
 const getBudgetMonitor = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -196,9 +199,9 @@ const getBudgetMonitor = asyncHandler(async (req, res) => {
   const overallStatus = statusFor(overallPct, totalSpent > totalLimit);
 
   // Generate threshold alerts (idempotent - no duplicates)
-  const newAlerts = await generateAlerts(req.user._id, entries, now, currency);
+  const newAlerts = await generateAlerts(userId, entries, now, currency);
 
-  // MoM comparison
+  // MoM comparison — run in parallel with current spend already fetched
   const prev = prevMonth(month);
   const { start: prevStart, end: prevEnd } = monthRange(prev);
   const [prevAgg, curAgg] = await Promise.all([
@@ -241,7 +244,7 @@ const getBudgetMonitor = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get notifications for authenticated user
-// @route   GET /api/notifications?unreadOnly=true&limit=20
+// @route   GET /api/budget-monitor/notifications?unreadOnly=true&limit=20
 // @access  Private
 const getNotifications = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -262,7 +265,7 @@ const getNotifications = asyncHandler(async (req, res) => {
 });
 
 // @desc    Mark a notification as read
-// @route   PATCH /api/notifications/:id/read
+// @route   PATCH /api/budget-monitor/notifications/:id/read
 // @access  Private
 const markNotificationRead = asyncHandler(async (req, res) => {
   const notification = await Notification.findOne({
@@ -282,7 +285,7 @@ const markNotificationRead = asyncHandler(async (req, res) => {
 });
 
 // @desc    Mark all notifications as read
-// @route   PATCH /api/notifications/read-all
+// @route   PATCH /api/budget-monitor/notifications/read-all
 // @access  Private
 const markAllNotificationsRead = asyncHandler(async (req, res) => {
   await Notification.updateMany(
@@ -316,11 +319,6 @@ const recalculateAfterTransaction = async (userId, monthStr, currency = "USD") =
   }
 
   await generateAlerts(userId, entries, now, currency);
-};
-
-const currentMonthStr = () => {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 };
 
 module.exports = {

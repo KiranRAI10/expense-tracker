@@ -8,23 +8,25 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { formatCurrency, MONTH_NAMES_SHORT } from "../utils/format";
+import { MONTH_NAMES_SHORT } from "../utils/format";
+import FormattedAmount from "./FormattedAmount";
 
-const CustomTooltip = ({ active, payload, label, currency }) => {
+const CustomTooltip = ({ active, payload, label, currency: _currency }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-md border border-ink/10 bg-white px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-medium text-ink">{MONTH_NAMES_SHORT[label - 1]}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="font-mono" style={{ color: p.fill }}>
-          {p.dataKey === "income" ? "Income" : "Expense"}: {formatCurrency(p.value, currency)}
+          {p.dataKey === "income" ? "Income" : "Expense"}:{" "}
+          <FormattedAmount amount={p.value} />
         </p>
       ))}
     </div>
   );
 };
 
-const TrendChart = ({ data, currency }) => {
+const TrendChart = ({ data, currency: _currency }) => {
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} barGap={4}>
@@ -42,7 +44,7 @@ const TrendChart = ({ data, currency }) => {
           tickLine={false}
           width={40}
         />
-        <Tooltip content={<CustomTooltip currency={currency} />} cursor={{ fill: "#1B2430", opacity: 0.04 }} />
+        <Tooltip content={<CustomTooltip currency={_currency} />} cursor={{ fill: "#1B2430", opacity: 0.04 }} />
         <Legend
           formatter={(value) => (value === "income" ? "Income" : "Expense")}
           wrapperStyle={{ fontSize: "12px" }}

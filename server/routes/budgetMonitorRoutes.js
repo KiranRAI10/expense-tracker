@@ -12,7 +12,7 @@ router.use(protect);
 
 router.get("/monitor", getBudgetMonitor);
 router.get("/notifications", getNotifications);
-router.patch("/notifications/:id/read", markNotificationRead);
 router.patch("/notifications/read-all", markAllNotificationsRead);
+router.patch("/notifications/:id/read", markNotificationRead);
 
 module.exports = router;

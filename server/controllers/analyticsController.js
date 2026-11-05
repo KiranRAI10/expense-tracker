@@ -73,13 +73,13 @@ const getByCategory = asyncHandler(async (req, res) => {
         as: "categoryInfo",
       },
     },
-    { $unwind: "$categoryInfo" },
+    { $unwind: { path: "$categoryInfo", preserveNullAndEmptyArrays: true } },
     {
       $project: {
         _id: 0,
         categoryId: "$_id",
-        name: "$categoryInfo.name",
-        color: "$categoryInfo.color",
+        name: { $ifNull: ["$categoryInfo.name", "Uncategorized"] },
+        color: { $ifNull: ["$categoryInfo.color", "#6B7785"] },
         total: 1,
       },
     },
@@ -93,7 +93,7 @@ const getByCategory = asyncHandler(async (req, res) => {
 // @route   GET /api/analytics/trend?year=YYYY
 // @access  Private
 const getTrend = asyncHandler(async (req, res) => {
-  const year = parseInt(req.query.year) || new Date().getUTCFullYear();
+  const year = parseInt(req.query.year, 10) || new Date().getUTCFullYear();
   const start = new Date(Date.UTC(year, 0, 1));
   const end = new Date(Date.UTC(year + 1, 0, 1));
 
@@ -106,7 +106,7 @@ const getTrend = asyncHandler(async (req, res) => {
     },
     {
       $group: {
-        _id: { month: { $month: "$date" }, type: "$type" },
+        _id: { month: { $month: { date: "$date", timezone: "UTC" } }, type: "$type" },
         total: { $sum: "$amount" },
       },
     },
@@ -120,7 +120,9 @@ const getTrend = asyncHandler(async (req, res) => {
 
   results.forEach((r) => {
     const idx = r._id.month - 1;
-    trend[idx][r._id.type] = r.total;
+    if (trend[idx] && r._id.type) {
+      trend[idx][r._id.type] = r.total;
+    }
   });
 
   res.json({ year, trend });

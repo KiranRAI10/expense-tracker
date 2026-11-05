@@ -17,16 +17,22 @@ const Transactions = () => {
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
   const loadCategories = useCallback(async () => {
-    const { data } = await api.get("/categories");
-    setCategories(data);
+    try {
+      const { data } = await api.get("/categories");
+      setCategories(data);
+    } catch {
+      // non-critical — form just won't have category options
+    }
   }, []);
 
   const loadTransactions = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const params = new URLSearchParams({ month });
       if (type) params.set("type", type);
@@ -34,6 +40,9 @@ const Transactions = () => {
       if (search) params.set("search", search);
       const { data } = await api.get(`/transactions?${params.toString()}`);
       setTransactions(data.transactions);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load transactions.");
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -60,8 +69,12 @@ const Transactions = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this transaction?")) return;
-    await api.delete(`/transactions/${id}`);
-    await loadTransactions();
+    try {
+      await api.delete(`/transactions/${id}`);
+      await loadTransactions();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not delete transaction.");
+    }
   };
 
   return (
@@ -119,6 +132,10 @@ const Transactions = () => {
           />
         </div>
       </div>
+
+      {error && (
+        <div className="mt-4 rounded-md bg-rust/10 px-3 py-2 text-sm text-rust">{error}</div>
+      )}
 
       <div className="mt-5">
         {loading ? (
